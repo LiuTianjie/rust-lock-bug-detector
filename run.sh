@@ -7,8 +7,9 @@ fi
 cargo build --release
 export RUSTC=${PWD}/target/release/rust-lock-bug-detector
 export RUST_BACKTRACE=full
-export RUST_LOCK_DETECTOR_TYPE=DoubleLockDetector
+#export RUST_LOCK_DETECTOR_TYPE=DoubleLockDetector
 #export RUST_LOCK_DETECTOR_TYPE=ConflictLockDetector
+export RUST_LOCK_DETECTOR_TYPE=AtomicityViolationAtomicDetector
 export RUST_LOCK_DETECTOR_BLACK_LISTS="cc"
 #export RUST_LOCK_DETECTOR_WHITE_LISTS="inter,intra,static_ref"
 
@@ -17,7 +18,7 @@ rm $cargo_dir_file
 touch $cargo_dir_file
 
 pushd "$1" > /dev/null
-#cargo clean
+cargo clean
 cargo_tomls=$(find . -name "Cargo.toml")
 for cargo_toml in ${cargo_tomls[@]}
 do

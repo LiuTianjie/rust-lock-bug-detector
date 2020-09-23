@@ -4,10 +4,12 @@
 extern crate rustc_driver;
 extern crate rustc_interface;
 
+mod atomicity_violation_atomic_checker;
 mod config;
 mod conflict_lock_checker;
 mod double_lock_checker;
 
+use atomicity_violation_atomic_checker::AtomicityViolationAtomicChecker;
 use config::*;
 use conflict_lock_checker::ConflictLockChecker;
 use double_lock_checker::DoubleLockChecker;
@@ -50,6 +52,20 @@ impl rustc_driver::Callbacks for DetectorCallbacks {
                         conflict_lock_checker.check(tcx);
                     }
                 },
+                LockDetectorType::AtomicityViolationAtomicDetector => {
+                    match lock_config.crate_name_lists {
+                        CrateNameLists::Black(crate_name_black_lists) => {
+                            let mut atomicity_violation_atomic_checker =
+                                AtomicityViolationAtomicChecker::new(false, crate_name_black_lists);
+                            atomicity_violation_atomic_checker.check(tcx);
+                        }
+                        CrateNameLists::White(crate_name_white_lists) => {
+                            let mut atomicity_violation_atomic_checker =
+                                AtomicityViolationAtomicChecker::new(true, crate_name_white_lists);
+                            atomicity_violation_atomic_checker.check(tcx);
+                        }
+                    }
+                }
             }
         });
         Compilation::Continue

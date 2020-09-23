@@ -7,6 +7,7 @@ pub enum CrateNameLists {
 pub enum LockDetectorType {
     DoubleLockDetector,
     ConflictLockDetector,
+    AtomicityViolationAtomicDetector,
 }
 
 pub struct LockDetectorConfig {
@@ -25,6 +26,8 @@ impl LockDetectorConfig {
                     LockDetectorType::DoubleLockDetector
                 } else if &detector == "ConflictLockDetector" {
                     LockDetectorType::ConflictLockDetector
+                } else if &detector == "AtomicityViolationAtomicDetector" {
+                    LockDetectorType::AtomicityViolationAtomicDetector
                 } else {
                     return Err("Env var \"RUST_LOCK_DETECTOR_TYPE\" is not set or provided with wrong value.\nPlease set it to \"DoubleLockDetector\" or \"ConflictLockDetector\"");
                 }
