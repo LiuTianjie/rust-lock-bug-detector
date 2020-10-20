@@ -18,7 +18,9 @@ impl Callgraph {
             direct: HashMap::new(),
         }
     }
-
+    // 当插入一个BasicBlock调用时，检查Callgraph中是否已经存在该调用，
+    // 如存在，则将其作为子调用插入到该调用的HashMap中
+    // 如不存在，则创建一个调用，插入到Callgraph中
     fn insert_direct(&mut self, caller: LocalDefId, bb: BasicBlock, callee: LocalDefId) {
         if let Some(callees) = self.direct.get_mut(&caller) {
             callees.insert(bb, callee);

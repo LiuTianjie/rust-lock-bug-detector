@@ -7,14 +7,15 @@ use super::config::{CrateNameLists, CALLCHAIN_DEPTH};
 use super::genkill::GenKill;
 use super::lock::{DoubleLockInfo, LockGuardId, LockGuardInfo};
 use super::report::DoubleLockReports;
+//LOCAL_CRATE是一个CrateNum枚举，包含Index(CrateId)和ReservedForIncrCompCache缓存?
 use rustc_hir::def_id::{LocalDefId, LOCAL_CRATE};
 use rustc_middle::mir::BasicBlock;
 use rustc_middle::ty::TyCtxt;
 use rustc_span::Span;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::cell::RefCell;
 struct FnLockContext {
     fn_id: LocalDefId,
     context: HashSet<LockGuardId>,
@@ -38,7 +39,7 @@ pub struct DoubleLockChecker {
     crate_name_lists: CrateNameLists,
     crate_lockguards: HashMap<LockGuardId, LockGuardInfo>,
     crate_callgraph: Callgraph,
-    crate_doublelock_reports: RefCell<DoubleLockReports>, 
+    crate_doublelock_reports: RefCell<DoubleLockReports>,
 }
 
 impl DoubleLockChecker {
@@ -48,6 +49,7 @@ impl DoubleLockChecker {
                 crate_name_lists: CrateNameLists::White(crate_name_lists),
                 crate_lockguards: HashMap::new(),
                 crate_callgraph: Callgraph::new(),
+                // RefCell提供了内部可变性，便于随时修改报告情况
                 crate_doublelock_reports: RefCell::new(DoubleLockReports::new()),
             }
         } else {
@@ -60,9 +62,11 @@ impl DoubleLockChecker {
         }
     }
     pub fn check(&mut self, tcx: TyCtxt) {
+        //Tyctxt.crate_name()方法返回关于该tcx的crate的名称，并转换成字符串
         let crate_name = tcx.crate_name(LOCAL_CRATE).to_string();
         match &self.crate_name_lists {
             CrateNameLists::White(lists) => {
+                // 如果列表中没有这些crate,返回，否则进行分析
                 if !lists.contains(&crate_name) {
                     return;
                 }
@@ -75,12 +79,17 @@ impl DoubleLockChecker {
         }
         println!("{}", crate_name);
         // collect fn
+        //此crate中所有具有MIR关联的DefId的集合，包括主体所有者和struct构造函数
         let ids = tcx.mir_keys(LOCAL_CRATE);
+        //收集所有是函数或闭包的DefId
         let fn_ids: Vec<LocalDefId> = ids
             .clone()
             .into_iter()
+            //对每个DefId，判断其是否是函数或闭包，如果是，collect到fn_ids中
             .filter(|id| {
+                //tcx.hir()返回一个Map，包含调用者的Tyctxt
                 let hir = tcx.hir();
+                //hirbody_owner_kind()检查调用者的类型，接受一个hirID，返回一个BodyOwnerKind枚举，包含函数、闭包、常量等属性
                 hir.body_owner_kind(hir.as_local_hir_id(*id))
                     .is_fn_or_closure()
             })
@@ -92,7 +101,9 @@ impl DoubleLockChecker {
             .into_iter()
             .filter_map(|fn_id| {
                 // println!("{:?}", fn_id);
+                // Tyctxt的optimized_mir()接受调用者的DefID，返回关于该DefId的MIR缓存
                 let body = tcx.optimized_mir(fn_id);
+                // lockguards中保存着所有未使用/释放的函数/闭包的信息
                 let lockguards = collect_lockguard_info(fn_id, body);
                 if lockguards.is_empty() {
                     None
@@ -177,7 +188,9 @@ impl DoubleLockChecker {
                     .collect::<Vec<Span>>();
                 // println!("Callchain: {:#?}", callchain_reports);
                 for report in double_lock_reports {
-                    self.crate_doublelock_reports.borrow_mut().add(report, &callchain_reports);
+                    self.crate_doublelock_reports
+                        .borrow_mut()
+                        .add(report, &callchain_reports);
                 }
             }
             if let Some(callsites) = self.crate_callgraph.get(&fn_id) {

@@ -19,7 +19,9 @@ pub fn collect_lockguard_info(
     body: &Body,
 ) -> HashMap<LockGuardId, LockGuardInfo> {
     let mut lockguards: HashMap<LockGuardId, LockGuardInfo> = HashMap::new();
+    // 遍历body中的MIR块
     for (local, local_decl) in body.local_decls.iter_enumerated() {
+        //parse_lockguard_type用于解析当前MIR块的上下文的调用者类型
         if let Some(type_name) = parse_lockguard_type(&local_decl.ty) {
             let lockguard_id = LockGuardId::new(fn_id, local);
             let lockguard_info = LockGuardInfo {
@@ -32,6 +34,7 @@ pub fn collect_lockguard_info(
             lockguards.insert(lockguard_id, lockguard_info);
         }
     }
+    // 暂时不知道DefUseAnalysis是做什么的
     let mut def_use_analysis = DefUseAnalysis::new(body);
     def_use_analysis.analyze(body);
     let lockguards = collect_lockguard_src_info(lockguards, body, &def_use_analysis);
@@ -156,6 +159,7 @@ fn collect_gen_kill_bbs(
     if lockguards.is_empty() {
         return lockguards;
     }
+    // lockguards中存放的是所有未被释放的lockguard的ID及其信息
     lockguards
         .into_iter()
         .filter_map(|(id, mut info)| {
@@ -163,18 +167,23 @@ fn collect_gen_kill_bbs(
             let use_info = def_use_analysis.local_info(id.local);
             for u in &use_info.defs_and_uses {
                 match u.context {
+                    // PlaceContext用于获取对应tcx的block 位置
                     PlaceContext::NonUse(context) => match context {
+                        // 没有使用过的tcx
                         NonUseContext::StorageLive => info.gen_bbs.push(u.location.block),
                         NonUseContext::StorageDead => info.kill_bbs.push(u.location.block),
                         _ => {}
                     },
                     PlaceContext::NonMutatingUse(context) => {
+                        // 使用过并转移了所有权的tcx
                         if let NonMutatingUseContext::Move = context {
                             info.kill_bbs.push(u.location.block);
                         }
                     }
                     PlaceContext::MutatingUse(context) => match context {
+                        // 使用过并释放了的tcx
                         MutatingUseContext::Drop => info.kill_bbs.push(u.location.block),
+                        // 使用过但没有释放的tcx
                         MutatingUseContext::Store => {
                             retain = false;
                             break;
@@ -184,6 +193,7 @@ fn collect_gen_kill_bbs(
                     },
                 }
             }
+            // 只有当tcx没有被销毁，才用collect收集
             if retain {
                 Some((id, info))
             } else {
