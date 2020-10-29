@@ -27,7 +27,7 @@ impl rustc_driver::Callbacks for DetectorCallbacks {
         compiler.session().abort_if_errors();
         // 对每一个tcx进行操作
         queries.global_ctxt().unwrap().peek_mut().enter(|tcx| {
-            // 加载锁检测器的相关配置
+            // 从环境变量加载锁检测器的相关配置
             let lock_config = LockDetectorConfig::from_env().unwrap();
             // 对不同的锁检测器执行不同的操作
             match lock_config.lock_detector_type {

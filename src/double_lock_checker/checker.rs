@@ -66,7 +66,6 @@ impl DoubleLockChecker {
         let crate_name = tcx.crate_name(LOCAL_CRATE).to_string();
         match &self.crate_name_lists {
             CrateNameLists::White(lists) => {
-                // 如果列表中没有这些crate,返回，否则进行分析
                 if !lists.contains(&crate_name) {
                     return;
                 }

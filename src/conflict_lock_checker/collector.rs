@@ -19,12 +19,16 @@ pub fn collect_lockguard_info(
     body: &Body,
 ) -> HashMap<LockGuardId, LockGuardInfo> {
     let mut lockguards: HashMap<LockGuardId, LockGuardInfo> = HashMap::new();
+    // Body.local_decls即MIR中的本地变量，其中第一个是返回值的指针，后面的是函数的参数，最后是用户声明的变量和临时变量
     for (local, local_decl) in body.local_decls.iter_enumerated() {
+        // local_decl.ty即该变量的类型
         if let Some(type_name) = parse_lockguard_type(&local_decl.ty) {
+            // 记录对应的函数/闭包的id和当前变量的索引
             let lockguard_id = LockGuardId::new(fn_id, local);
             let lockguard_info = LockGuardInfo {
                 type_name,
                 src: None,
+                // 变量在源代码中的位置
                 span: local_decl.source_info.span,
                 gen_bbs: Vec::new(),
                 kill_bbs: Vec::new(),
@@ -33,7 +37,9 @@ pub fn collect_lockguard_info(
         }
     }
     let mut def_use_analysis = DefUseAnalysis::new(body);
-    def_use_analysis.analyze(body);
+    //创建一个def_use_analysis变量，包含了当前body对应的info信息->info: IndexVec<Local, Info>
+    // def_ust_analysis包含了body的访问信息，通过DefUseAnalysis的analyze()方法，调用Visitor的visit_body方法，修改info的内容。
+    def_use_analysis.analyze(body); 
     let lockguards = collect_lockguard_src_info(lockguards, body, &def_use_analysis);
     collect_gen_kill_bbs(lockguards, body, &def_use_analysis)
 }
@@ -69,7 +75,7 @@ fn batch_gen_depends(local: Local, batch_depend_results: &mut BatchDependResults
         }
     }
 }
-
+// 获取lockguards的原始信息
 fn collect_lockguard_src_info(
     lockguards: HashMap<LockGuardId, LockGuardInfo>,
     body: &Body,

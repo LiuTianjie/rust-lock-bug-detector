@@ -40,13 +40,16 @@ impl ConflictLockChecker {
         }
     }
     pub fn check(&mut self, tcx: TyCtxt) {
+        //待检测的crate名字
         let crate_name = tcx.crate_name(LOCAL_CRATE).to_string();
         match &self.crate_name_lists {
+            // 如果待检测的crate不在白名单中，则直接返回
             CrateNameLists::White(lists) => {
                 if !lists.contains(&crate_name) {
                     return;
                 }
             }
+            // 如果待检测的crate在黑名单中，也直接返回
             CrateNameLists::Black(lists) => {
                 if lists.contains(&crate_name) {
                     return;
@@ -56,6 +59,7 @@ impl ConflictLockChecker {
         // println!("{}", crate_name);
         // collect fn
         let ids = tcx.mir_keys(LOCAL_CRATE);
+        // 当前crate的所有函数和闭包的ID
         let fn_ids: Vec<LocalDefId> = ids
             .clone()
             .into_iter()
@@ -71,6 +75,7 @@ impl ConflictLockChecker {
             .clone()
             .into_iter()
             .filter_map(|fn_id| {
+                //Tyctxt.optimized_mir()返回一个经过优化的MIR表示
                 let body = tcx.optimized_mir(fn_id);
                 let lockguards = collect_lockguard_info(fn_id, body);
                 if lockguards.is_empty() {

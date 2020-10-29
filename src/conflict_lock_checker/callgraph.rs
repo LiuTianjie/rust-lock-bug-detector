@@ -6,6 +6,7 @@ use rustc_middle::mir::{BasicBlock, Body, Operand, TerminatorKind};
 use rustc_middle::ty::TyKind;
 use std::collections::HashMap;
 pub struct Callgraph {
+    // direct:HashMap<调用者ID,HashMap<调用发生的基本块，被调用者ID>>
     pub direct: HashMap<LocalDefId, HashMap<BasicBlock, LocalDefId>>,
 }
 
@@ -17,9 +18,12 @@ impl Callgraph {
     }
 
     fn insert_direct(&mut self, caller: LocalDefId, bb: BasicBlock, callee: LocalDefId) {
+        // 如果调用者已经存在于Callgraph中，直接将其插入到调用者对应的HashMap中
         if let Some(callees) = self.direct.get_mut(&caller) {
             callees.insert(bb, callee);
         } else {
+            //如果调用者不存在于Callgraph中，则创建一个调用者HashMap，并将被调用者的基本块、ID等插入新建的调用者HashMap中
+            // 最后将调用者插入Callgraph
             let mut callees: HashMap<BasicBlock, LocalDefId> = HashMap::new();
             callees.insert(bb, callee);
             self.direct.insert(caller, callees);
