@@ -39,7 +39,7 @@ pub fn collect_lockguard_info(
     let mut def_use_analysis = DefUseAnalysis::new(body);
     //创建一个def_use_analysis变量，包含了当前body对应的info信息->info: IndexVec<Local, Info>
     // def_ust_analysis包含了body的访问信息，通过DefUseAnalysis的analyze()方法，调用Visitor的visit_body方法，修改info的内容。
-    def_use_analysis.analyze(body); 
+    def_use_analysis.analyze(body);
     let lockguards = collect_lockguard_src_info(lockguards, body, &def_use_analysis);
     collect_gen_kill_bbs(lockguards, body, &def_use_analysis)
 }
@@ -50,24 +50,33 @@ fn batch_gen_depends_for_all<'a, 'b, 'tcx>(
     def_use_analysis: &'b DefUseAnalysis,
 ) -> BatchDependResults<'a, 'b, 'tcx> {
     let mut batch_depend_results = BatchDependResults::new(body, def_use_analysis);
+
     for id in lockguards.keys() {
+        // 对每一个本地变量，生成相应的依赖关系
         batch_gen_depends(id.local, &mut batch_depend_results);
     }
+    // 返回所有的依赖结果
     batch_depend_results
 }
 
 fn batch_gen_depends(local: Local, batch_depend_results: &mut BatchDependResults) {
+    // 生成一个Place对象，包含值的路径及其投影
     let local_place = Place::from(local);
+    // 将Place装载进worklist，后者是一个Vec
     let mut worklist: Vec<Place> = vec![local_place];
     let mut visited: HashSet<Place> = HashSet::new();
+    // 将当前值的路径加入visited
     visited.insert(local_place);
     while let Some(place) = worklist.pop() {
+        // 修改/完batch_depend_result.depend_query_info
         batch_depend_results.gen_depends(place);
+        // 对每个本地变量，找到其相关的变量/调用等
         for depend in batch_depend_results
             .get_depends(place)
             .into_iter()
             .map(|(place, _)| place)
         {
+            // 如果当前depend不在visited中，将其加入worklist，然后将其加入visited(标记为已访问)
             if !visited.contains(&depend) {
                 worklist.push(depend);
                 visited.insert(depend);
@@ -77,7 +86,7 @@ fn batch_gen_depends(local: Local, batch_depend_results: &mut BatchDependResults
 }
 // 获取lockguards的原始信息
 fn collect_lockguard_src_info(
-    lockguards: HashMap<LockGuardId, LockGuardInfo>,
+    lockgurds: HashMap<LockGuardId, LockGuardInfo>,
     body: &Body,
     def_use_analysis: &DefUseAnalysis,
 ) -> HashMap<LockGuardId, LockGuardInfo> {
