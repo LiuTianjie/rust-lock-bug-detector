@@ -33,12 +33,14 @@ impl Callgraph {
     pub fn generate(&mut self, caller: LocalDefId, body: &Body, crate_fn_ids: &[LocalDefId]) {
         for (bb, bb_data) in body.basic_blocks().iter_enumerated() {
             let terminator = bb_data.terminator();
+            // 对于每个bb，匹配termitor的kind，（不是每个bb的termitor都是函数/闭包调用？）
             if let TerminatorKind::Call { ref func, .. } = terminator.kind {
                 if let Operand::Constant(box constant) = func {
                     match constant.literal.ty.kind {
                         TyKind::FnDef(callee_def_id, _) | TyKind::Closure(callee_def_id, _) => {
                             if let Some(local_callee_def_id) = callee_def_id.as_local() {
                                 if crate_fn_ids.contains(&local_callee_def_id) {
+                                    // callee_def_id是通过tcx.optimized_mir(*fn_id)查询后，经过一系列if let得到的
                                     self.insert_direct(caller, bb, local_callee_def_id);
                                 } else {
                                     // dbg!("The fn/closure is not body owner");

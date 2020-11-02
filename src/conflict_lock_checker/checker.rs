@@ -77,6 +77,7 @@ impl ConflictLockChecker {
             .filter_map(|fn_id| {
                 //Tyctxt.optimized_mir()返回一个经过优化的MIR表示
                 let body = tcx.optimized_mir(fn_id);
+                //lockguards:HashMap<LockGuardId, LockGuardInfo>
                 let lockguards = collect_lockguard_info(fn_id, body);
                 if lockguards.is_empty() {
                     None
@@ -89,6 +90,7 @@ impl ConflictLockChecker {
             return;
         }
         for (_, info) in lockguards.iter() {
+            //用于拓展和更新crate_lockguards
             self.crate_lockguards.extend(info.clone().into_iter());
         }
         println!(
