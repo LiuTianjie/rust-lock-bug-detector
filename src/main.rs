@@ -92,7 +92,7 @@ fn main() {
 
     if let Some(sysroot) = compile_time_sysroot() {
         let sysroot_flag = "--sysroot";
-        // 当"sysroot_flag"与rustc_args中的参数全部不相同时，将其加入rustc_flag
+        // rustc_args中的参数不包含'--sysroot'时，将其加入rustc_flag
         if !rustc_args.iter().any(|e| e == sysroot_flag) {
             // We need to overwrite the default that librustc would compute.
             rustc_args.push(sysroot_flag.to_owned());

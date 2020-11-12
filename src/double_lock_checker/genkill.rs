@@ -11,13 +11,16 @@ use std::collections::HashSet;
 pub struct GenKill<'a> {
     gen: HashMap<BasicBlock, HashSet<LockGuardId>>,
     kill: HashMap<BasicBlock, HashSet<LockGuardId>>,
+    //before中存储的进入bb前的lockguardInfo
     before: HashMap<BasicBlock, HashSet<LockGuardId>>,
+    //after中存储的是出去bb后的lockguardInfo
     after: HashMap<BasicBlock, HashSet<LockGuardId>>,
     worklist: Vec<BasicBlock>,
     crate_lockguards: &'a HashMap<LockGuardId, LockGuardInfo>,
 }
 
 impl<'a> GenKill<'a> {
+    //其实这个new方法就是把lockguardInfo里面的关于gen，kill基本块的信息提取出来存到GenKill的实例对象中
     pub fn new(
         fn_id: LocalDefId,
         body: &Body,
@@ -40,8 +43,9 @@ impl<'a> GenKill<'a> {
                 kill.entry(*bb).or_insert_with(HashSet::new).insert(*id);
             }
         }
-
-        for (bb, _) in body.basic_blocks().iter_enumerated() {
+        // worklist存储的是从body中查询到的basicblocks,
+        // gen,kill都是从之前收集到的lockguardInfo里面收集到的
+        for (bb, _) in body.basic_blocks().iter_eumerated() {
             before.insert(bb, HashSet::new());
             after.insert(bb, HashSet::new());
             worklist.push(bb);
@@ -63,19 +67,27 @@ impl<'a> GenKill<'a> {
         let mut count: u32 = 0;
         while !self.worklist.is_empty() && count <= RUN_LIMIT {
             count += 1;
+            // worklist中存储的是BasicBlock，是一个对u32的封装，表示了其索引
             let cur = self.worklist.pop().unwrap();
             let mut new_before: HashSet<LockGuardId> = HashSet::new();
             // copy after[prev] to new_before
+            // body.predecessors()返回body中所有基本块的前驱节点：IndecVec<BasicBlock,BasicBlockData>
+            //body.predecessorr()[cur]:在所有前驱节点中查询当前worklist中的basicblock的前驱节点
             let prevs = &body.predecessors()[cur];
             if !prevs.is_empty() {
                 for prev in prevs {
+                    // 对于每一个前驱节点，将其after(出节点后的LockGuardInfo，前驱节点的after就是当前节点的bfore)
+                    //将其加入到newbefore里面
                     new_before.extend(self.after[prev].clone().into_iter());
+                    //更新当前节点的before
                     self.before
                         .get_mut(&cur)
                         .unwrap()
                         .extend(new_before.clone().into_iter());
                 }
+            //更新完所有bb的before
             } else {
+                // 如果当前节点没有前驱节点，则将当前节点的前驱加入newbefore
                 new_before.extend(self.before[&cur].clone().into_iter());
             }
             // first kill, then gen
@@ -150,6 +162,7 @@ impl<'a> GenKill<'a> {
     }
 
     fn compare_lockguards(&self, lhs: &HashSet<LockGuardId>, rhs: &HashSet<LockGuardId>) -> bool {
+        // 比较before和after，如果二者数量不一致，则返回false，即出现doublelock的bug
         if lhs.len() != rhs.len() {
             return false;
         }
