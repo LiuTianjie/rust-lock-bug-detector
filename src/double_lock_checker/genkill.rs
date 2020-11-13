@@ -87,7 +87,7 @@ impl<'a> GenKill<'a> {
                 }
             //更新完所有bb的before
             } else {
-                // 如果当前节点没有前驱节点，则将当前节点的前驱加入newbefore
+                // 如果当前节点没有前驱节点，则直接将当前节点的before视作newbefore
                 new_before.extend(self.before[&cur].clone().into_iter());
             }
             // first kill, then gen
@@ -99,6 +99,8 @@ impl<'a> GenKill<'a> {
                 double_lock_bugs.extend(double_locks.into_iter());
             }
             if !self.compare_lockguards(&new_before, &self.after[&cur]) {
+                // 如果newbefore和after的数量lockguard不一致，或者数量一致但内容不同，
+                // 则将当前节点的后继节点加入worklist，继续以上操作
                 self.after.insert(cur, new_before);
                 self.worklist
                     .extend(body.basic_blocks()[cur].terminator().successors().clone());
@@ -131,6 +133,7 @@ impl<'a> GenKill<'a> {
                     .unwrap()
                     .deadlock_with(self.crate_lockguards.get(second).unwrap())
                 {
+                    //如果形成死锁，则将其加入double_lock
                     double_locks.push(DoubleLockInfo {
                         first: *first,
                         second: *second,
@@ -147,6 +150,8 @@ impl<'a> GenKill<'a> {
         new_before: &mut HashSet<LockGuardId>,
         lockguards: &HashSet<LockGuardId>,
     ) {
+        // 对于newbore中的每一个lockguard，使其与lockguards中的每一个进行比较，如果存在一个相同就返回false，
+        // 即将其从newbefore中移除
         new_before.retain(move |b| {
             let b = self.crate_lockguards.get(b).unwrap();
             if lockguards
@@ -156,16 +161,15 @@ impl<'a> GenKill<'a> {
             {
                 return false;
             }
-
             true
         });
     }
 
     fn compare_lockguards(&self, lhs: &HashSet<LockGuardId>, rhs: &HashSet<LockGuardId>) -> bool {
-        // 比较before和after，如果二者数量不一致，则返回false，即出现doublelock的bug
         if lhs.len() != rhs.len() {
             return false;
         }
+        // 如果左边和右边数量相同，则判断内容是否相同，是则返回true
         let rhs_info = rhs
             .iter()
             .map(|r| self.crate_lockguards.get(r).unwrap())

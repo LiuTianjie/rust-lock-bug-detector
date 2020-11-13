@@ -101,20 +101,25 @@ impl LockGuardType {
             LockGuardType::StdMutexGuard
             | LockGuardType::ParkingLotMutexGuard
             | LockGuardType::SpinMutexGuard => *self == *other,
+            // 以上三种锁必须同时相同才形成deadlock
             LockGuardType::StdRwLockReadGuard | LockGuardType::StdRwLockWriteGuard => {
                 *other == LockGuardType::StdRwLockReadGuard
                     || *other == LockGuardType::StdRwLockWriteGuard
             }
+            // linux上多个读锁不会形成deadlock，但windows和mac会 
             LockGuardType::ParkingLotRwLockReadGuard
             | LockGuardType::ParkingLotRwLockWriteGuard => {
                 *other == LockGuardType::ParkingLotRwLockReadGuard
                     || *other == LockGuardType::ParkingLotRwLockWriteGuard
             }
+            // linux上多个读锁不会形成deadlock，但windows和mac会 
             LockGuardType::SpinRwLockReadGuard => *other == LockGuardType::SpinRwLockWriteGuard,
+            //SpinRwLockRead读和写不能同时进行，是自旋锁
             LockGuardType::SpinRwLockWriteGuard => {
                 *other == LockGuardType::SpinRwLockReadGuard
                     || *other == LockGuardType::SpinRwLockWriteGuard
             }
+            //SpinRwLockWrite写和任何操作都不能同时进行
         }
     }
 }
