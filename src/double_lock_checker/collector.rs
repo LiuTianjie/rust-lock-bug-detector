@@ -20,6 +20,7 @@ pub fn collect_lockguard_info(
 ) -> HashMap<LockGuardId, LockGuardInfo> {
     let mut lockguards: HashMap<LockGuardId, LockGuardInfo> = HashMap::new();
     // 遍历body中的MIR块
+    //local是索引，local_decl是MIR表示，包含ty上下文
     for (local, local_decl) in body.local_decls.iter_enumerated() {
         //parse_lockguard_type用于解析当前MIR块的上下文的调用者类型
         if let Some(type_name) = parse_lockguard_type(&local_decl.ty) {

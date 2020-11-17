@@ -55,7 +55,9 @@ impl<'a, 'b, 'tcx> BatchDependResults<'a, 'b, 'tcx> {
         for u in &use_info.defs_and_uses {
             match u.context {
                 PlaceContext::MutatingUse(MutatingUseContext::Store) => {
+                    // 根据当前语句的Location信息判断是否是termitor语句
                     assert!(!is_terminator_location(&u.location, self.body));
+                    // 获取到具体的语句
                     let stmt = &self.body.basic_blocks()[u.location.block].statements
                         [u.location.statement_index];
                     if let StatementKind::Assign(box (lhs, ref rvalue)) = stmt.kind {
@@ -66,6 +68,7 @@ impl<'a, 'b, 'tcx> BatchDependResults<'a, 'b, 'tcx> {
                             Rvalue::Use(operand) => {
                                 match operand {
                                     Operand::Move(rhs) => {
+                                        // 检查左值被右值赋值的方法，将对应类型贾安东depend_query_info中
                                         self.depend_query_info.add_depend(
                                             DependPair(lhs, *rhs),
                                             DependResult::MoveDepend,
